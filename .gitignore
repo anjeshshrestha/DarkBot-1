@@ -3,3 +3,6 @@
 /test
 /out
 dependency-reduced-pom.xml
+*.json
+*.dll
+*.jar
