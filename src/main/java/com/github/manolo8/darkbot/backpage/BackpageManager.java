@@ -16,6 +16,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,6 +42,7 @@ public class BackpageManager extends Thread {
     private long sidNextUpdate = sidLastUpdate;
     private long checkDrones = Long.MAX_VALUE;
     private int sidStatus = -1;
+    private long buyStuffs;
 
     public BackpageManager(Main main) {
         super("BackpageManager");
@@ -67,6 +69,26 @@ public class BackpageManager extends Thread {
                 continue;
             } else if (sidStatus == SidStatus.NO_SID) {
                 sidStatus = SidStatus.UNKNOWN;
+            }
+
+            if (System.currentTimeMillis() > buyStuffs) {
+                buyStuffs = System.currentTimeMillis() + 5 * Time.SECOND;
+                // buyStuffs = System.currentTimeMillis() + 2 * Time.MINUTE;
+                try {
+                    Item item = getRandomItem();
+                    //System.out.println("bought: " + item.itemId);
+                    getConnection("ajax/shop.php", Method.POST, 1000)
+                            .setRawParam("action", "purchase")
+                            .setRawParam("category", item.category)
+                            .setRawParam("itemId", item.itemId)
+                            .setRawParam("amount", getRandomNumber(1, 11))
+                            .setRawParam("level", item.level)
+                            .setRawParam("selectedName", item.selectedName)
+                            .closeInputStream();
+                } catch (Exception e) {
+                    System.err.println("buying failed");
+                    e.printStackTrace();
+                }
             }
 
             this.hangarManager.tick();
@@ -103,6 +125,38 @@ public class BackpageManager extends Thread {
                     }
                 }
             }
+
+        }
+    }
+
+    private String getRandomNumber(int min, int max) {
+        return String.valueOf(ThreadLocalRandom.current().nextInt(min, max));
+    }
+
+    private Item getRandomItem() {
+        Item[] values = Item.values();
+        return values[ThreadLocalRandom.current().nextInt(0, values.length)];
+    }
+
+    private enum Item {
+        LCB("battery", "ammunition_laser_lcb-10", "-1"),
+        PLT_2026("rocket", "ammunition_rocket_plt-2026", "-1"),
+        R_310("rocket", "ammunition_rocket_r-310", "-1"),
+        SAR_01("rocket", "ammunition_rocketlauncher_sar-01", "-1"),
+        ECO_10("rocket", "ammunition_rocketlauncher_eco-10", "-1");
+        //LF_1("weapon", "equipment_weapon_laser_lf-1", "-1"),
+        //REP_01("special", "equipment_extra_repbot_rep-1", "-1");
+
+        private final String category, itemId, level, selectedName;
+        Item(String cat, String id, String lv, String name) {
+            category = cat;
+            itemId = id;
+            level = lv;
+            selectedName = name;
+        }
+
+        Item(String cat, String id, String lv) {
+            this(cat, id, lv, "");
         }
     }
 
